@@ -25,3 +25,7 @@
 .footer button { min-width: 132px; }
 
 .footer { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+
+@media (max-width: 400px) {
+  .form { padding: 24px 20px; }
+}

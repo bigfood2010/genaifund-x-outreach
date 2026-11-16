@@ -16,6 +16,7 @@
   background: var(--peach);
   color: var(--sienna);
   font-size: 14px;
+  white-space: nowrap;
 }
 
 .handle { color: var(--slate); }
