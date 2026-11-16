@@ -12,6 +12,7 @@ function meta(p: ProspectView): string {
   if (p.status === 'no_fit') return 'Not a fit';
   if (p.status === 'do_not_contact') return 'Do not contact';
   if (p.status === 'rejected') return 'Skipped';
+  if (p.status === 'approved') return 'Approved';
   return p.fit === 'strong' ? 'Strong fit' : 'Possible fit';
 }
 

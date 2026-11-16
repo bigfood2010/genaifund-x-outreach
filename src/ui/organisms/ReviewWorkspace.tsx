@@ -38,7 +38,8 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
   }, [view]);
 
   const [tab, setTab] = useState<Bucket>(() => TABS.find((t) => counts[t.id])?.id ?? 'review');
-  const list = view.filter((p) => p.bucket === tab);
+  const [kept, setKept] = useState<Set<string>>(new Set());
+  const list = view.filter((p) => p.bucket === tab || kept.has(p.id));
   const [selectedId, setSelectedId] = useState<string | null>(list[0]?.id ?? null);
   const selected = view.find((p) => p.id === selectedId) ?? list[0] ?? null;
 
@@ -59,6 +60,7 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
 
   function changeTab(b: Bucket) {
     setTab(b);
+    setKept(new Set());
     setSelectedId(view.find((p) => p.bucket === b)?.id ?? null);
   }
 
@@ -66,8 +68,13 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
     setPending({ id, kind });
     if (optimistic) {
       setOverrides((o) => ({ ...o, [id]: { ...o[id], ...optimistic } }));
-      const next = list.find((p) => p.id !== id && list.indexOf(p) > list.findIndex((q) => q.id === id)) ?? list.find((p) => p.id !== id);
-      if (optimistic.bucket !== tab) setSelectedId(next?.id ?? id);
+      const waiting = list.filter((p) => p.id !== id && p.bucket === tab);
+      const at = list.findIndex((q) => q.id === id);
+      const next = waiting.find((p) => list.indexOf(p) > at) ?? waiting[0];
+      if (optimistic.bucket !== tab) {
+        setKept((k) => new Set(k).add(id));
+        setSelectedId(next?.id ?? id);
+      }
     }
     startTransition(async () => {
       const r = await task();
@@ -94,13 +101,15 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
     <div className={styles.workspace}>
       <div className={styles.head}>
         <h1 className={styles.title}>Review</h1>
-        <Button variant="ghost" pending={pending?.kind === 'sync'}
-          onClick={() => run('', 'sync', syncReplies)}>{pending?.kind === 'sync' ? 'Checking' : 'Check replies'}</Button>
+        <div className={styles.tools}>
+          {message.text && <p className={styles.message} key={message.n} aria-hidden>{message.text}</p>}
+          <Button variant="ghost" className={styles.sync} pending={pending?.kind === 'sync'}
+            onClick={() => run('', 'sync', syncReplies)}>{pending?.kind === 'sync' ? 'Checking' : 'Check replies'}</Button>
+        </div>
       </div>
 
       <StatusTabs value={tab} counts={counts} onChange={changeTab} />
       <p className="visually-hidden" aria-live="polite">{message.text}</p>
-      {message.text && <p className={styles.message} key={message.n} aria-hidden>{message.text}</p>}
 
       <div className={styles.split}>
         {list.length ? (
