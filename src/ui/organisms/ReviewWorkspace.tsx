@@ -94,7 +94,7 @@ export function ReviewWorkspace({ items }: { items: ProspectView[] }) {
   return (
     <div className={styles.workspace}>
       <div className={styles.head}>
-        <h1 className={styles.title}>Review</h1>
+        <h1>Review</h1>
         <div className={styles.tools}>
           {message.text && <p className={styles.message} key={message.n} aria-hidden>{message.text}</p>}
           <Button variant="ghost" className={styles.sync} pending={pending?.kind === 'sync'}
@@ -107,13 +107,13 @@ export function ReviewWorkspace({ items }: { items: ProspectView[] }) {
 
       <div className={styles.split}>
         {list.length ? (
-          <ul className={styles.list}>
+          <ul className={`${styles.list} plain-list`}>
             {list.map((p) => <ProspectRow key={p.id} p={p} selected={p.id === selected?.id} onSelect={() => setSelectedId(p.id)} />)}
           </ul>
         ) : (
           <div className={styles.empty}>
             <p>{EMPTY[tab]}</p>
-            {tab === 'review' && <Link href="/find" className={styles.emptyLink}>Find people</Link>}
+            {tab === 'review' && <Link href="/find" className={`${styles.emptyLink} link`}>Find people</Link>}
           </div>
         )}
         {selected && (

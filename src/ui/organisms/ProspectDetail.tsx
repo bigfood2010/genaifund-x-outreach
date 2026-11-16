@@ -47,11 +47,11 @@ function Delivery({ p, justSent }: { p: ProspectView; justSent: boolean }) {
     <section className={styles.delivery} aria-live="polite">
       <div className={styles.deliveryHead}>
         {justSent && <Motion name="check" size={[32, 32]} label="Sent" />}
-        <h3 className={styles.deliveryTitle}>{title}</h3>
+        <h3 className="subhead">{title}</h3>
       </div>
-      <p className={styles.muted}>{body}</p>
+      <p className="muted">{body}</p>
       <blockquote className={styles.sent}>{s.text}</blockquote>
-      <a className={styles.link} href={xUrl(p.username)} target="_blank" rel="noreferrer">Open @{p.username} on X</a>
+      <a className={`${styles.link} link`} href={xUrl(p.username)} target="_blank" rel="noreferrer">Open @{p.username} on X</a>
     </section>
   );
 }
@@ -65,12 +65,12 @@ export function ProspectDetail({ p, actions, pending, justSent, sendBlocked }: {
   const editable = p.bucket === 'review' || p.bucket === 'approved';
 
   return (
-    <article className={styles.detail} key={p.id}>
+    <article className={`${styles.detail} enter`} key={p.id}>
       <header className={styles.header}>
         <div className={styles.who}>
           <h2 className={styles.name}>{p.name}</h2>
-          <p className={styles.muted}>
-            <a className={styles.handle} href={xUrl(p.username)} target="_blank" rel="noreferrer">@{p.username}</a>
+          <p className="muted">
+            <a className={`${styles.handle} link`} href={xUrl(p.username)} target="_blank" rel="noreferrer">@{p.username}</a>
           </p>
         </div>
       </header>
@@ -79,7 +79,7 @@ export function ProspectDetail({ p, actions, pending, justSent, sendBlocked }: {
 
       {p.bucket === 'skipped' && (
         <section className={styles.section}>
-          <p className={styles.muted}>{SKIP_NOTE[p.status] ?? ''}</p>
+          <p className="muted">{SKIP_NOTE[p.status] ?? ''}</p>
           {(p.status === 'rejected' || p.status === 'no_fit') && (
             <Button variant="ghost" onClick={() => actions.decide(p.id, 'restore')} pending={pending === 'restore'}>Move to review</Button>
           )}
@@ -88,7 +88,7 @@ export function ProspectDetail({ p, actions, pending, justSent, sendBlocked }: {
 
       {p.reasons.length > 0 && (
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Why they fit</h3>
+          <h3 className="subhead">Why they fit</h3>
           <Evidence bio={p.bio} posts={p.posts} reasons={p.reasons} />
         </section>
       )}

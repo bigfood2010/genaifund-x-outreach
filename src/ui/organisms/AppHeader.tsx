@@ -6,7 +6,7 @@ import styles from './AppHeader.module.css';
 export function AppHeader({ username, liveSending }: { username: string; liveSending: boolean }) {
   return (
     <header className={styles.header}>
-      <span className={styles.mark}>Outreach</span>
+      <span className="wordmark">Outreach</span>
       <nav className={styles.nav} aria-label="Main">
         <NavLink href="/">Review</NavLink>
         <NavLink href="/find">Find</NavLink>

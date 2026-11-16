@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '../atoms/Button.tsx';
 import styles from './ConnectPanel.module.css';
 
 const STEPS = [
@@ -14,8 +15,8 @@ export function ConnectPanel({ error }: { error: string | null }) {
   const [agreed, setAgreed] = useState(false);
   return (
     <main className={styles.page}>
-      <div className={styles.panel}>
-        <span className={styles.mark}>Outreach</span>
+      <div className={`${styles.panel} enter`}>
+        <span className="wordmark">Outreach</span>
         <h1 className={styles.title}>Connect the X account you send from</h1>
         <ol className={styles.steps}>
           {STEPS.map((s) => <li key={s}>{s}</li>)}
@@ -24,11 +25,10 @@ export function ConnectPanel({ error }: { error: string | null }) {
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
           <span>I own this account and agree to these actions on it</span>
         </label>
-        <div className={styles.actions}>
-          <a href={agreed ? '/login' : undefined} aria-disabled={!agreed} className={styles.connect}
-            onClick={(e) => !agreed && e.preventDefault()}>Connect X</a>
-          {error && <p className={styles.error} role="alert">{error}</p>}
-        </div>
+        <form action="/login" method="get" className={styles.actions}>
+          <Button disabled={!agreed}>Connect X</Button>
+          {error && <p className="error" role="alert">{error}</p>}
+        </form>
       </div>
     </main>
   );

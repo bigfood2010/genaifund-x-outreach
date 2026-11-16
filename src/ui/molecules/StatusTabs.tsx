@@ -18,7 +18,7 @@ export function StatusTabs({ value, counts, onChange }: { value: Bucket; counts:
       {TABS.map((t) => (
         <button key={t.id} role="tab" aria-selected={value === t.id} className={styles.tab} onClick={() => onChange(t.id)}>
           {t.label}
-          <span className={styles.count} data-zero={counts[t.id] === 0 || undefined}>{counts[t.id]}</span>
+          <span className={`${styles.count} caption`} data-zero={counts[t.id] === 0 || undefined}>{counts[t.id]}</span>
         </button>
       ))}
     </div>

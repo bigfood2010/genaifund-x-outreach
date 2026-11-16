@@ -1,12 +1,6 @@
 .evidence { display: grid; gap: 24px; }
 
-.reasons {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 8px;
-}
+.reasons { gap: 8px; }
 
 .reason {
   display: flex;
@@ -27,7 +21,7 @@
   background: var(--paper);
 }
 
-.label { color: var(--ash); font-size: 14px; margin-bottom: 4px; }
+.label { margin-bottom: 4px; }
 
 .text {
   margin: 0;

@@ -1,0 +1,13 @@
+.field {
+  width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  font-size: 16px;
+  resize: vertical;
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+
+.field:hover { border-color: var(--hairline-strong); }
+
+.field:focus { outline: none; border-color: var(--ink); box-shadow: var(--focus-ring); }

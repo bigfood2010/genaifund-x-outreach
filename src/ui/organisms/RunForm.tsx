@@ -51,7 +51,7 @@ export function RunForm({ defaultTarget, maxPerRun, costCeiling }: { defaultTarg
         <Button pending={pending}>{pending ? 'Starting' : 'Find people'}</Button>
         <p className={styles.help}>Checks up to {maxPerRun} new people. At most {costCeiling[mode]} in X API reads.</p>
       </div>
-      {state && !state.ok && <p className={styles.error} role="alert">{state.message}</p>}
+      {state && !state.ok && <p className="error" role="alert">{state.message}</p>}
     </form>
   );
 }

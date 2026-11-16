@@ -40,7 +40,7 @@
 
 .tab[aria-selected='true']::after { transform: scaleX(1); }
 
-.count { min-width: 2ch; color: var(--ash); font-size: 14px; font-variant-numeric: tabular-nums; }
+.count { min-width: 2ch; font-variant-numeric: tabular-nums; }
 
 .count[data-zero] { visibility: hidden; }
 

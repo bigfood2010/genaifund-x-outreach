@@ -10,7 +10,6 @@
   text-align: left;
   cursor: pointer;
   transition: background-color var(--fast) var(--ease);
-  animation: arrive var(--enter) var(--ease) both;
 }
 
 .row:hover { background: var(--fog); }
@@ -34,7 +33,7 @@
   white-space: nowrap;
 }
 
-.meta { flex: none; color: var(--ash); font-size: 14px; }
+.meta { flex: none; }
 
 .line {
   color: var(--slate);
@@ -45,8 +44,4 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
-}
-
-@keyframes arrive {
-  from { opacity: 0; transform: translateY(4px); }
 }

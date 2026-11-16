@@ -18,12 +18,12 @@ function meta(p: ProspectView): string {
 export function ProspectRow({ p, selected, onSelect }: { p: ProspectView; selected: boolean; onSelect: () => void }) {
   return (
     <li>
-      <button className={styles.row} aria-current={selected || undefined} onClick={onSelect}>
+      <button className={`${styles.row} arrive`} aria-current={selected || undefined} onClick={onSelect}>
         <Avatar name={p.name} />
         <span className={styles.body}>
           <span className={styles.top}>
             <span className={styles.name}>{p.name}</span>
-            <span className={styles.meta}>{meta(p)}</span>
+            <span className={`${styles.meta} caption`}>{meta(p)}</span>
           </span>
           <span className={styles.line}>{p.reasons[0]?.claim || p.bio || `@${p.username}`}</span>
         </span>

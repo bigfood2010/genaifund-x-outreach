@@ -19,7 +19,7 @@ export function Evidence({ bio, posts, reasons }: { bio: string; posts: Post[]; 
   const [active, setActive] = useState<string | null>(null);
   return (
     <div className={styles.evidence}>
-      <ol className={styles.reasons}>
+      <ol className={`${styles.reasons} plain-list`}>
         {reasons.map((r) => (
           <li key={r.quote} onMouseEnter={() => setActive(r.quote)} onMouseLeave={() => setActive(null)}
             onFocus={() => setActive(r.quote)} onBlur={() => setActive(null)} tabIndex={0} className={styles.reason}>
@@ -30,7 +30,7 @@ export function Evidence({ bio, posts, reasons }: { bio: string; posts: Post[]; 
       <div className={styles.sources}>
         {sources(bio, posts, reasons).map((s) => (
           <figure key={s.id} className={styles.source}>
-            <figcaption className={styles.label}>{s.label}</figcaption>
+            <figcaption className={`${styles.label} caption`}>{s.label}</figcaption>
             <blockquote className={styles.text}><Highlighted text={s.text} quotes={s.quotes} active={active} /></blockquote>
           </figure>
         ))}
