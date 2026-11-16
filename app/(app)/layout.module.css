@@ -6,3 +6,5 @@
   .page { padding: 0 20px 64px; }
   .main { padding-top: 16px; }
 }
+
+.notice { display: grid; gap: 16px; justify-items: start; }
