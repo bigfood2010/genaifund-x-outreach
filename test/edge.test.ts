@@ -10,7 +10,7 @@ import { Store } from '../src/server/infra/db.ts';
 import { assess } from '../src/server/infra/llm.ts';
 import { snowflakeTime, XApiError, XClient } from '../src/server/infra/x.ts';
 import { Outreach, SendRefused } from '../src/server/outreach.ts';
-import { explainXError } from '../src/server/web/errors.ts';
+import { explainXError } from '../src/server/errors.ts';
 import { prospectViews } from '../src/server/web/views.ts';
 import { segment } from '../src/ui/lib/highlight.ts';
 import { gap, relative } from '../src/ui/lib/time.ts';

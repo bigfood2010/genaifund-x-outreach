@@ -1,4 +1,4 @@
-import type { XApiError } from '../infra/x.ts';
+import type { XApiError } from './infra/x.ts';
 
 export function explainXError(e: XApiError): string {
   if (e.status === 402) return 'X API credits are used up. Buy credits or raise the spend cap at console.x.com.';

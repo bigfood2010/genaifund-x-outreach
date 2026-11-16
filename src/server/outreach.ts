@@ -4,7 +4,7 @@ import type { Config } from './infra/config.ts';
 import type { Store } from './infra/db.ts';
 import { assess } from './infra/llm.ts';
 import { snowflakeTime, XApiError, type XClient, type XUser } from './infra/x.ts';
-import { explainXError } from './web/errors.ts';
+import { explainXError } from './errors.ts';
 
 export const DEFAULT_TARGET = 'AI and robotics builders, founders and researchers: people working on AI models, applications, developer tools, infrastructure, robotics or embodied AI. Relevant individuals, not companies or news accounts.';
 

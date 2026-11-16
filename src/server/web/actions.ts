@@ -7,7 +7,7 @@ import { canTransition, type ReviewStatus } from '../domain/prospect.ts';
 import { XApiError } from '../infra/x.ts';
 import { DEFAULT_TARGET, SendRefused } from '../outreach.ts';
 import { container } from './container.ts';
-import { explainXError } from './errors.ts';
+import { explainXError } from '../errors.ts';
 import { endSession, requireOperator } from './session.ts';
 
 export type ActionResult = { ok: boolean; message: string };
