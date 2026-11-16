@@ -7,7 +7,7 @@
   animation: enter var(--enter) var(--ease) both;
 }
 
-.header { display: flex; align-items: center; gap: 16px; }
+.header { display: flex; align-items: center; gap: 16px; margin-bottom: -16px; }
 
 .who { display: grid; gap: 2px; min-width: 0; }
 
@@ -25,11 +25,15 @@
 
 .muted { color: var(--slate); font-size: 15px; }
 
-.section { display: grid; gap: 16px; }
+.section { display: grid; gap: 16px; justify-items: start; }
+
+.section > * { max-width: 100%; }
 
 .sectionTitle { margin: 0; font-size: 15px; font-weight: 480; }
 
-.actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.actions { justify-self: stretch; display: flex; align-items: center; gap: 12px; }
+
+.actions[data-split] { justify-content: space-between; align-items: baseline; gap: 24px; }
 
 .delivery {
   display: grid;

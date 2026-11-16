@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import type { ProspectView } from '@/server/views.ts';
-import { Avatar } from '../atoms/Avatar.tsx';
 import { Button } from '../atoms/Button.tsx';
 import { Motion } from '../atoms/Motion.tsx';
 import { DraftEditor } from '../molecules/DraftEditor.tsx';
@@ -63,17 +62,14 @@ export function ProspectDetail({ p, actions, pending, justSent, sendBlocked, noR
   useEffect(() => setDraft(p.draft), [p.id, p.draft]);
 
   const editable = p.bucket === 'review' || p.bucket === 'approved';
-  const fitLabel = p.fit === 'strong' ? 'Strong fit' : p.fit === 'weak' ? 'Possible fit' : null;
 
   return (
     <article className={styles.detail} key={p.id}>
       <header className={styles.header}>
-        <Avatar name={p.name} size={56} />
         <div className={styles.who}>
           <h2 className={styles.name}>{p.name}</h2>
           <p className={styles.muted}>
             <a className={styles.handle} href={`https://x.com/${p.username}`} target="_blank" rel="noreferrer">@{p.username}</a>
-            {fitLabel && <span> · {fitLabel}</span>}
           </p>
         </div>
       </header>
@@ -99,7 +95,7 @@ export function ProspectDetail({ p, actions, pending, justSent, sendBlocked, noR
       {editable && (
         <section className={styles.section}>
           <DraftEditor value={draft} onChange={setDraft} onBlur={() => draft !== p.draft && actions.save(p.id, draft)} />
-          <div className={styles.actions}>
+          <div className={styles.actions} data-split={p.bucket === 'approved' || undefined}>
             {p.bucket === 'review' ? (
               <>
                 <Button onClick={() => actions.decide(p.id, 'approve', draft)} pending={pending === 'approve'} disabled={!draft.trim()}>Approve</Button>

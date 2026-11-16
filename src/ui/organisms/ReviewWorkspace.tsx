@@ -87,7 +87,7 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
 
   const sendBlocked = (p: ProspectView) =>
     !liveSending && !testRecipients.includes(p.username.toLowerCase())
-      ? `Test mode is on. Sending is limited to ${testRecipients.length ? testRecipients.map((r) => '@' + r).join(', ') : 'nobody'}. Set LIVE_SENDING=true to message real people.`
+      ? `Test mode: sends only to ${testRecipients.length ? testRecipients.map((r) => '@' + r).join(', ') : 'no one'}`
       : null;
 
   return (

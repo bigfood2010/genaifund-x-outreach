@@ -12,9 +12,9 @@ export function DraftEditor({ value, onChange, onBlur, readOnly }: {
     <div className={styles.editor}>
       <div className={styles.head}>
         <label htmlFor="draft" className={styles.label}>Message</label>
-        <span className={styles.count} data-over={over || undefined} aria-live="polite">
-          {value.length} / {SOFT_LIMIT}
-        </span>
+        {value.length > SOFT_LIMIT * 0.9 && (
+          <span className={styles.count} data-over={over || undefined} aria-live="polite">{value.length} / {SOFT_LIMIT}</span>
+        )}
       </div>
       <textarea id="draft" className={styles.field} value={value} readOnly={readOnly} maxLength={1000}
         onChange={(e) => onChange(e.target.value)} onBlur={onBlur} rows={5} spellCheck />
