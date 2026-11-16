@@ -8,12 +8,14 @@ export const DEFAULT_TARGET = 'AI and robotics builders, founders and researcher
 const PRICE = { post: 0.005, user: 0.01 };
 const POSTS_PER_PERSON = 5;
 const MAX_SEEDS = 5;
+const CANDIDATES_PER_SLOT = 4;
+const searchSize = (max: number) => Math.min(100, Math.max(10, max * CANDIDATES_PER_SLOT));
 
 export function runCostCeiling(mode: 'search' | 'seeds', max: number): number {
   const perPerson = POSTS_PER_PERSON * PRICE.post;
   const discovery = mode === 'search'
-    ? Math.max(10, max * 2) * (PRICE.post + PRICE.user)
-    : MAX_SEEDS * PRICE.user + max * PRICE.user;
+    ? searchSize(max) * (PRICE.post + PRICE.user)
+    : MAX_SEEDS * PRICE.user + max * CANDIDATES_PER_SLOT * PRICE.user;
   return discovery + max * perPerson;
 }
 
@@ -45,7 +47,7 @@ export class Outreach {
     const max = this.cfg.maxProspectsPerRun;
     if (req.mode === 'search') {
       const query = /-is:retweet/.test(req.source) ? req.source : `${req.source} -is:retweet -is:reply`;
-      const res = await this.x.searchRecent(query, max * 2);
+      const res = await this.x.searchRecent(query, searchSize(max));
       return res.includes?.users ?? [];
     }
     const seeds = req.source.split(/[\s,]+/).map((s) => s.replace(/^@/, '').replace(/^https?:\/\/(x|twitter)\.com\//, '')).filter(Boolean);
@@ -53,36 +55,33 @@ export class Outreach {
     for (const seed of seeds.slice(0, 5)) {
       const user = (await this.x.userByUsername(seed)).data;
       if (!user) continue;
-      out.push(...((await this.x.following(user.id, Math.max(1, Math.ceil(max / seeds.length)))).data ?? []));
+      out.push(...((await this.x.following(user.id, Math.max(1, Math.ceil((max * CANDIDATES_PER_SLOT) / seeds.length)))).data ?? []));
     }
     return out;
   }
 
   private async discover(runId: number, req: RunRequest): Promise<string> {
     const senderId = this.x.senderId;
-    const fresh = (await this.candidates(req))
-      .filter((u, i, all) => all.findIndex((v) => v.id === u.id) === i)
-      .filter((u) => u.id !== senderId && !u.protected && !this.store.knownProspect(u.id))
-      .slice(0, this.cfg.maxProspectsPerRun);
+    const all = (await this.candidates(req))
+      .filter((u, i, list) => list.findIndex((v) => v.id === u.id) === i)
+      .filter((u) => u.id !== senderId && !u.protected && !this.store.knownProspect(u.id));
+    const closed = all.filter((u) => u.receives_your_dm === false).length;
+    const open = all.filter((u) => u.receives_your_dm !== false).slice(0, this.cfg.maxProspectsPerRun);
     let drafted = 0;
-    let skipped = 0;
-    for (const u of fresh) {
-      const base = { x_user_id: u.id, username: u.username, name: u.name, bio: u.description ?? '', run_id: runId, receives_dm: u.receives_your_dm === undefined ? null : Number(u.receives_your_dm) };
-      if (u.receives_your_dm === false) {
-        this.store.insertProspect({ ...base, posts_json: '[]', fit: null, reasons_json: '[]', draft: '', status: 'not_dm_able', note: 'X reports this person does not accept DMs from your account.' });
-        skipped++;
-        continue;
-      }
+    for (const u of open) {
       const posts: Post[] = ((await this.x.recentPosts(u.id)).data ?? []).map((p) => ({ id: p.id, text: p.text, created_at: p.created_at }));
-      const a = await assess(this.cfg, req.target, this.cfg.senderDescription, { bio: base.bio, posts });
-      const fits = a.fit !== 'none';
-      if (fits) drafted++;
+      const bio = u.description ?? '';
+      const a = await assess(this.cfg, req.target, this.cfg.senderDescription, { bio, posts });
+      if (a.fit !== 'none') drafted++;
       this.store.insertProspect({
-        ...base, posts_json: JSON.stringify(posts), fit: a.fit, reasons_json: JSON.stringify(a.reasons),
-        draft: a.draft, status: fits ? 'needs_review' : 'no_fit',
+        x_user_id: u.id, username: u.username, name: u.name, bio, run_id: runId,
+        receives_dm: u.receives_your_dm === undefined ? null : Number(u.receives_your_dm),
+        posts_json: JSON.stringify(posts), fit: a.fit, reasons_json: JSON.stringify(a.reasons),
+        draft: a.draft, status: a.fit !== 'none' ? 'needs_review' : 'no_fit',
       });
     }
-    return `${fresh.length} new people checked, ${drafted} drafts ready for review, ${skipped} do not accept DMs.`;
+    const skipped = closed ? ` ${closed} more do not accept DMs from your account and were left out.` : '';
+    return `${open.length} people checked, ${drafted} drafts ready for review.${skipped}`;
   }
 
   async send(recipientId: string, text: string): Promise<void> {
@@ -90,7 +89,7 @@ export class Outreach {
     const senderId = this.x.senderId;
     if (!p || !senderId) throw new SendRefused('Unknown person or no connected X account.');
     if (p.status !== 'approved') throw new SendRefused('Only approved drafts can be sent.');
-    if (!text.replace(/[\s​-‍⁠﻿]/g, '')) throw new SendRefused('The message is empty.');
+    if (!text.replace(/[\s\u200B-\u200D\u2060\uFEFF]/g, '')) throw new SendRefused('The message is empty.');
     if (!this.cfg.liveSending && !this.cfg.testRecipients.includes(p.username.toLowerCase())) {
       throw new SendRefused(`Test mode: sending is limited to TEST_RECIPIENTS. @${p.username} is not on that list.`);
     }
