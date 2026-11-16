@@ -1,0 +1,8 @@
+.page { max-width: var(--page); margin: 0 auto; padding: 0 32px 96px; }
+
+.main { padding-top: 40px; }
+
+@media (max-width: 860px) {
+  .page { padding: 0 20px 64px; }
+  .main { padding-top: 16px; }
+}

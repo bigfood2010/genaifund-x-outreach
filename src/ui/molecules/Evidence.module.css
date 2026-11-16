@@ -1,0 +1,49 @@
+.evidence { display: grid; gap: 24px; }
+
+.reasons {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  counter-reset: reason;
+}
+
+.reason {
+  display: flex;
+  gap: 12px;
+  font-size: 16px;
+  line-height: 1.5;
+  border-radius: 8px;
+  outline-offset: 4px;
+  cursor: default;
+  counter-increment: reason;
+}
+
+.reason::before {
+  content: counter(reason);
+  flex: none;
+  width: 16px;
+  color: var(--ash);
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.sources { display: grid; gap: 12px; }
+
+.source {
+  margin: 0;
+  padding: 16px 20px;
+  border-radius: var(--radius-small);
+  background: var(--paper);
+}
+
+.label { color: var(--ash); font-size: 14px; margin-bottom: 4px; }
+
+.text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}

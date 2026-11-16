@@ -1,0 +1,29 @@
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  height: 80px;
+}
+
+.mark { font-family: var(--font-display); font-size: 24px; letter-spacing: -0.01em; }
+
+.nav { display: flex; gap: 32px; }
+
+.account { display: flex; align-items: center; justify-content: flex-end; gap: 20px; font-size: 15px; }
+
+.mode {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--peach);
+  color: var(--sienna);
+  font-size: 14px;
+}
+
+.handle { color: var(--slate); }
+
+@media (max-width: 860px) {
+  .header { grid-template-columns: auto 1fr; height: auto; padding: 16px 0; }
+  .nav { order: 3; grid-column: 1 / -1; }
+  .handle { display: none; }
+}

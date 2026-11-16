@@ -1,0 +1,26 @@
+.link {
+  position: relative;
+  padding: 4px 0;
+  color: var(--slate);
+  text-decoration: none;
+  font-size: 16px;
+  transition: color var(--fast) var(--ease);
+}
+
+.link:hover, .link[aria-current='page'] { color: var(--ink); }
+
+.link::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  transform: scale(0);
+  transition: transform var(--enter) var(--ease);
+}
+
+.link[aria-current='page']::after { transform: scale(1); }

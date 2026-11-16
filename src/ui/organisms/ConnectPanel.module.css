@@ -1,0 +1,65 @@
+.page {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+  background: var(--fog);
+}
+
+.panel {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 32px;
+  padding: 48px;
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: var(--shadow-float);
+  animation: enter var(--enter) var(--ease) both;
+}
+
+.mark { font-family: var(--font-display); font-size: 22px; }
+
+.title { font-size: 44px; line-height: 1.15; letter-spacing: -0.015em; }
+
+.steps {
+  margin: 0;
+  padding: 0 0 0 20px;
+  display: grid;
+  gap: 12px;
+  color: var(--slate);
+  font-size: 16px;
+}
+
+.steps li::marker { color: var(--ash); font-size: 14px; }
+
+.consent { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; cursor: pointer; }
+
+.consent input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ink); cursor: pointer; }
+
+.actions { display: grid; gap: 16px; justify-items: start; }
+
+.connect {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 24px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+  font-weight: 450;
+  transition: opacity var(--fast) var(--ease), transform var(--fast) var(--ease), background-color var(--fast) var(--ease);
+}
+
+.connect:hover { background: #2a2d32; }
+.connect:active { transform: scale(0.97); }
+.connect[aria-disabled='true'] { opacity: 0.35; cursor: not-allowed; }
+
+.error { color: var(--danger); font-size: 15px; }
+
+@keyframes enter { from { opacity: 0; transform: translateY(8px); } }
+
+@media (max-width: 600px) {
+  .panel { padding: 32px 24px; }
+  .title { font-size: 34px; }
+}

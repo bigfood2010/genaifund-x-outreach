@@ -1,0 +1,40 @@
+.group {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--count), 1fr);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+}
+
+.thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--count));
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  transform: translateX(calc(100% * var(--index)));
+  transition: transform var(--enter) var(--ease);
+}
+
+.option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 36px;
+  padding: 0 16px;
+  color: var(--slate);
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  transition: color var(--fast) var(--ease);
+}
+
+.option:has(:checked) { color: var(--paper); }
+
+.option:has(:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.input { position: absolute; opacity: 0; pointer-events: none; }

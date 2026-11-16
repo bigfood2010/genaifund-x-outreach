@@ -1,0 +1,29 @@
+.editor { display: grid; gap: 8px; }
+
+.head { display: flex; align-items: baseline; justify-content: space-between; }
+
+.label { font-size: 15px; font-weight: 480; }
+
+.count { color: var(--ash); font-size: 14px; transition: color var(--fast) var(--ease); }
+
+.count[data-over] { color: var(--danger); }
+
+.field {
+  width: 100%;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-input);
+  background: var(--paper);
+  font-size: 16px;
+  line-height: 1.55;
+  resize: vertical;
+  field-sizing: content;
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+
+.field:hover:not(:read-only) { border-color: #dcdcde; }
+
+.field:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(23, 25, 28, 0.08); }
+
+.field:read-only { color: var(--slate); background: var(--fog); }

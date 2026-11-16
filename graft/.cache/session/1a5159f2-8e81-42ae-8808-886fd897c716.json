@@ -1,9 +1,0 @@
-{
-  "graftReads": 0,
-  "sourceReads": 2,
-  "savedTokens": 0,
-  "injectedPointers": [],
-  "nudges": 0,
-  "promptAsks": 1,
-  "host": "claude-code"
-}
