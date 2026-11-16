@@ -25,7 +25,8 @@
   display: grid;
   place-items: center;
   height: 36px;
-  padding: 0 16px;
+  padding: 0 12px;
+  white-space: nowrap;
   color: var(--slate);
   font-size: 15px;
   cursor: pointer;

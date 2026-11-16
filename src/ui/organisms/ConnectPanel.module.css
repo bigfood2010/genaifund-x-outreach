@@ -41,8 +41,9 @@
 .connect {
   display: inline-flex;
   align-items: center;
-  height: 44px;
-  padding: 0 24px;
+  height: 40px;
+  padding: 0 20px;
+  font-size: 15px;
   border-radius: var(--radius-pill);
   background: var(--ink);
   color: var(--paper);
