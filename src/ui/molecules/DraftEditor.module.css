@@ -1,8 +1,8 @@
-.editor { display: grid; gap: 8px; }
+.editor { display: grid; gap: 16px; }
 
 .head { display: flex; align-items: baseline; justify-content: space-between; }
 
-.label { font-size: 15px; font-weight: 480; }
+.label { font-size: 18px; font-weight: 500; line-height: 1.25; }
 
 .count { color: var(--ash); font-size: 14px; transition: color var(--fast) var(--ease); }
 
