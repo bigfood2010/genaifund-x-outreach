@@ -12,11 +12,11 @@
 .who { display: grid; gap: 2px; min-width: 0; }
 
 .name {
-  font-family: var(--font-ui);
-  font-size: 26px;
-  font-weight: 450;
-  line-height: 1.18;
-  letter-spacing: -0.009em;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.012em;
   overflow-wrap: anywhere;
 }
 
@@ -29,7 +29,7 @@
 
 .section > * { max-width: 100%; }
 
-.sectionTitle { margin: 0; font-size: 15px; font-weight: 480; }
+.sectionTitle { margin: 0; font-size: 18px; font-weight: 500; line-height: 1.25; }
 
 .actions { justify-self: stretch; display: flex; align-items: center; gap: 12px; }
 
@@ -46,7 +46,7 @@
 
 .deliveryHead { display: flex; align-items: center; gap: 12px; }
 
-.deliveryTitle { margin: 0; font-size: 20px; font-weight: 450; letter-spacing: -0.009em; }
+.deliveryTitle { margin: 0; font-size: 18px; font-weight: 500; line-height: 1.25; }
 
 .sent {
   margin: 4px 0 0;
