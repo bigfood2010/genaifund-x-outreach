@@ -36,8 +36,10 @@
 
 .tab:hover { color: var(--ink); }
 
-.tab[aria-selected='true'] { color: var(--ink); font-weight: 480; }
+.tab[aria-selected='true'] { color: var(--ink); }
 
 .tab[aria-selected='true']::after { transform: scaleX(1); }
 
-.count { color: var(--ash); font-size: 14px; font-weight: 400; }
+.count { min-width: 2ch; color: var(--ash); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.count[data-zero] { visibility: hidden; }

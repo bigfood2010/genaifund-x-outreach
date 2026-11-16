@@ -1,5 +1,7 @@
 .control { display: flex; align-items: center; gap: 16px; }
 
+.control > button:first-child { min-width: 96px; }
+
 .cancel { animation: appear var(--fast) var(--ease) both; }
 
 .blocked { color: var(--slate); font-size: 15px; }

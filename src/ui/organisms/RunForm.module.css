@@ -30,6 +30,10 @@
 
 .help { color: var(--slate); font-size: 14px; }
 
+.field .help { min-height: 3em; }
+
+.footer button { min-width: 132px; }
+
 .footer { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 
 .error { color: var(--danger); font-size: 15px; }
