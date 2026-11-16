@@ -62,4 +62,6 @@
 
 .stop { justify-self: start; }
 
+.back { color: var(--ink); }
+
 @keyframes enter { from { opacity: 0.35; transform: translateY(6px); } }

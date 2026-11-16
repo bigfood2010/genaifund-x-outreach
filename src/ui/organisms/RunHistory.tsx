@@ -35,7 +35,7 @@ export function RunHistory({ runs }: { runs: RunView[] }) {
             </div>
           ) : (
             <p className={r.status === 'failed' ? styles.failed : styles.note}>
-              {r.note}{r.status === 'done' && r.found > 0 && <> <Link href="/" className={styles.link}>Review →</Link></>}
+              {r.note}{r.status === 'done' && r.found > 0 && <> <Link href="/" className={styles.link}>Review</Link></>}
             </p>
           )}
         </li>
