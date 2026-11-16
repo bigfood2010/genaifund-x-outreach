@@ -1,5 +1,5 @@
-import { container } from '@/server/container.ts';
-import { requireOperator } from '@/server/session.ts';
+import { container } from '@/server/web/container.ts';
+import { requireOperator } from '@/server/web/session.ts';
 import { AppHeader } from '@/ui/organisms/AppHeader.tsx';
 import styles from './layout.module.css';
 

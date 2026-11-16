@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Post, Reason } from '@/server/db.ts';
+import type { Post, Reason } from '@/server/domain/prospect.ts';
 import { Highlighted } from '../atoms/Highlighted.tsx';
 import { relative } from '../lib/time.ts';
 import styles from './Evidence.module.css';

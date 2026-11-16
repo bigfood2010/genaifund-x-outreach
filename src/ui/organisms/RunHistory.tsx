@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import type { RunView } from '@/server/views.ts';
+import type { RunView } from '@/server/web/views.ts';
 import { Motion } from '../atoms/Motion.tsx';
 import { relative } from '../lib/time.ts';
 import styles from './RunHistory.module.css';

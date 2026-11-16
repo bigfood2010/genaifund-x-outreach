@@ -1,25 +1,14 @@
-import type { Config } from './config.ts';
-import type { Post, Store } from './db.ts';
-import { assess } from './llm.ts';
-import { snowflakeTime, XApiError, type XClient, type XUser } from './x.ts';
+import { MAX_SEEDS, POSTS_PER_PERSON, searchSize, seedFollowSize } from './domain/pricing.ts';
+import { testModeRefusal, type Post } from './domain/prospect.ts';
+import type { Config } from './infra/config.ts';
+import type { Store } from './infra/db.ts';
+import { assess } from './infra/llm.ts';
+import { snowflakeTime, XApiError, type XClient, type XUser } from './infra/x.ts';
+import { explainXError } from './web/errors.ts';
 
 export const DEFAULT_TARGET = 'AI and robotics builders, founders and researchers: people working on AI models, applications, developer tools, infrastructure, robotics or embodied AI. Relevant individuals, not companies or news accounts.';
 
-const PRICE = { post: 0.005, user: 0.01 };
-const POSTS_PER_PERSON = 5;
-const MAX_SEEDS = 5;
-const CANDIDATES_PER_SLOT = 4;
-const searchSize = (max: number) => Math.min(100, Math.max(10, max * CANDIDATES_PER_SLOT));
-
-export function runCostCeiling(mode: 'search' | 'seeds', max: number): number {
-  const perPerson = POSTS_PER_PERSON * PRICE.post;
-  const discovery = mode === 'search'
-    ? searchSize(max) * (PRICE.post + PRICE.user)
-    : MAX_SEEDS * PRICE.user + max * CANDIDATES_PER_SLOT * PRICE.user;
-  return discovery + max * perPerson;
-}
-
-export type RunRequest = { target: string; mode: 'search' | 'seeds'; source: string };
+type RunRequest = { target: string; mode: 'search' | 'seeds'; source: string };
 
 export class SendRefused extends Error {}
 
@@ -38,7 +27,7 @@ export class Outreach {
     const runId = this.store.createRun(req.mode, JSON.stringify(req));
     this.discover(runId, req).then(
       (note) => this.store.finishRun(runId, 'done', note),
-      (e) => this.store.finishRun(runId, 'failed', e instanceof XApiError ? e.explanation : String(e.message ?? e)),
+      (e) => this.store.finishRun(runId, 'failed', e instanceof XApiError ? explainXError(e) : String(e.message ?? e)),
     );
     return runId;
   }
@@ -52,10 +41,10 @@ export class Outreach {
     }
     const seeds = req.source.split(/[\s,]+/).map((s) => s.replace(/^@/, '').replace(/^https?:\/\/(x|twitter)\.com\//, '')).filter(Boolean);
     const out: XUser[] = [];
-    for (const seed of seeds.slice(0, 5)) {
+    for (const seed of seeds.slice(0, MAX_SEEDS)) {
       const user = (await this.x.userByUsername(seed)).data;
       if (!user) continue;
-      out.push(...((await this.x.following(user.id, Math.max(1, Math.ceil((max * CANDIDATES_PER_SLOT) / seeds.length)))).data ?? []));
+      out.push(...((await this.x.following(user.id, seedFollowSize(max, seeds.length))).data ?? []));
     }
     return out;
   }
@@ -69,7 +58,7 @@ export class Outreach {
     const open = all.filter((u) => u.receives_your_dm !== false).slice(0, this.cfg.maxProspectsPerRun);
     let drafted = 0;
     for (const u of open) {
-      const posts: Post[] = ((await this.x.recentPosts(u.id)).data ?? []).map((p) => ({ id: p.id, text: p.text, created_at: p.created_at }));
+      const posts: Post[] = ((await this.x.recentPosts(u.id, POSTS_PER_PERSON)).data ?? []).map((p) => ({ id: p.id, text: p.text, created_at: p.created_at }));
       const bio = u.description ?? '';
       const a = await assess(this.cfg, req.target, this.cfg.senderDescription, { bio, posts });
       if (a.fit !== 'none') drafted++;
@@ -90,17 +79,18 @@ export class Outreach {
     if (!p || !senderId) throw new SendRefused('Unknown person or no connected X account.');
     if (p.status !== 'approved') throw new SendRefused('Only approved drafts can be sent.');
     if (!text.replace(/[\s\u200B-\u200D\u2060\uFEFF]/g, '')) throw new SendRefused('The message is empty.');
-    if (!this.cfg.liveSending && !this.cfg.testRecipients.includes(p.username.toLowerCase())) {
-      throw new SendRefused(`Test mode: sending is limited to TEST_RECIPIENTS. @${p.username} is not on that list.`);
-    }
+    const blocked = testModeRefusal(this.cfg, p.username);
+    if (blocked) throw new SendRefused(blocked);
+    // The UNIQUE(sender, recipient) insert is the send-once lock. It must happen before the X call so a crash or retry can never double send.
     const id = this.store.claimSend(senderId, recipientId, text);
     if (id === null) throw new SendRefused(`Already messaged @${p.username}. The tool never sends a second message.`);
     try {
       const res = await this.x.sendDm(recipientId, text);
       this.store.markSent(id, res.data.dm_event_id, res.data.dm_conversation_id);
     } catch (e) {
+      // A 4xx means X refused the DM (failed). Timeouts and 5xx may have been delivered, so they are stored as unknown. Neither is ever retried.
       const known = e instanceof XApiError && e.status >= 400 && e.status < 500;
-      this.store.markSendFailed(id, known ? 'failed' : 'unknown', e instanceof XApiError ? e.explanation : String(e));
+      this.store.markSendFailed(id, known ? 'failed' : 'unknown', e instanceof XApiError ? explainXError(e) : String(e));
       throw e;
     }
   }
@@ -114,6 +104,7 @@ export class Outreach {
       const m = other ? ours.get(other) : undefined;
       const newest = c.newest_event_id ?? '';
       if (!m || !/^\d+$/.test(newest) || m.replied_at || sentIds.has(newest)) continue;
+      // XChat replies are encrypted and the API returns no text, so a reply is detected as a newer event id from the other person, not as message content.
       if (BigInt(newest) <= BigInt(m.dm_event_id!)) continue;
       this.store.markReplied(other!, snowflakeTime(newest).toISOString());
       found++;

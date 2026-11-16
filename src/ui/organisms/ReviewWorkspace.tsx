@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { doNotContact, review, saveDraft, send, syncReplies } from '@/server/actions.ts';
-import type { Bucket, ProspectView } from '@/server/views.ts';
+import { bucketOf, type Bucket, type ReviewStatus } from '@/server/domain/prospect.ts';
+import { doNotContact, review, saveDraft, send, syncReplies, type ActionResult } from '@/server/web/actions.ts';
+import type { ProspectView } from '@/server/web/views.ts';
 import { Button } from '../atoms/Button.tsx';
 import { ProspectRow } from '../molecules/ProspectRow.tsx';
 import { StatusTabs, TABS } from '../molecules/StatusTabs.tsx';
@@ -19,16 +20,9 @@ const EMPTY: Record<Bucket, string> = {
   skipped: 'No skipped people.',
 };
 
-const MOVE: Record<string, Partial<ProspectView>> = {
-  approve: { status: 'approved', bucket: 'approved' },
-  reject: { status: 'rejected', bucket: 'skipped' },
-  restore: { status: 'needs_review', bucket: 'review' },
-  stop: { status: 'do_not_contact', bucket: 'skipped' },
-};
+const STATUS_AFTER = { approve: 'approved', reject: 'rejected', restore: 'needs_review', stop: 'do_not_contact' } as const satisfies Record<string, ReviewStatus>;
 
-export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHours }: {
-  items: ProspectView[]; liveSending: boolean; testRecipients: string[]; noReplyHours: number;
-}) {
+export function ReviewWorkspace({ items }: { items: ProspectView[] }) {
   const [overrides, setOverrides] = useState<Record<string, Partial<ProspectView>>>({});
   const view = useMemo(() => items.map((p) => ({ ...p, ...overrides[p.id] })), [items, overrides]);
   const counts = useMemo(() => {
@@ -45,8 +39,8 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
 
   const [pending, setPending] = useState<{ id: string; kind: string } | null>(null);
   const [justSent, setJustSent] = useState<string | null>(null);
-  const [message, setNote] = useState({ text: '', n: 0 });
-  const setMessage = (text: string) => setNote((m) => ({ text, n: m.n + 1 }));
+  const [message, setMessageState] = useState({ text: '', n: 0 });
+  const setMessage = (text: string) => setMessageState((m) => ({ text, n: m.n + 1 }));
   const [, startTransition] = useTransition();
   const synced = useRef(false);
 
@@ -64,7 +58,7 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
     setSelectedId(view.find((p) => p.bucket === b)?.id ?? null);
   }
 
-  function run(id: string, kind: string, task: () => Promise<{ ok: boolean; message: string }>, optimistic?: Partial<ProspectView>) {
+  function run(id: string, kind: string, task: () => Promise<ActionResult>, optimistic?: Partial<ProspectView>) {
     setPending({ id, kind });
     if (optimistic) {
       setOverrides((o) => ({ ...o, [id]: { ...o[id], ...optimistic } }));
@@ -85,17 +79,17 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
     });
   }
 
-  const actions: DetailActions = {
-    decide: (id, d, draft) => run(id, d, () => review(id, d, draft), { ...MOVE[d], ...(draft ? { draft } : {}) }),
-    save: (id, draft) => { setOverrides((o) => ({ ...o, [id]: { ...o[id], draft } })); saveDraft(id, draft); },
-    send: (id) => run(id, 'send', () => send(id)),
-    stop: (id) => run(id, 'stop', () => doNotContact(id), MOVE.stop),
+  const moveTo = (id: string, kind: keyof typeof STATUS_AFTER, draft?: string): Partial<ProspectView> => {
+    const status = STATUS_AFTER[kind];
+    return { status, bucket: bucketOf(status, view.find((p) => p.id === id)?.send ?? null), ...(draft ? { draft } : {}) };
   };
 
-  const sendBlocked = (p: ProspectView) =>
-    !liveSending && !testRecipients.includes(p.username.toLowerCase())
-      ? `Test mode: sends only to ${testRecipients.length ? testRecipients.map((r) => '@' + r).join(', ') : 'no one'}`
-      : null;
+  const actions: DetailActions = {
+    decide: (id, d, draft) => run(id, d, () => review(id, d, draft), moveTo(id, d, draft)),
+    save: (id, draft) => { setOverrides((o) => ({ ...o, [id]: { ...o[id], draft } })); saveDraft(id, draft); },
+    send: (id) => run(id, 'send', () => send(id)),
+    stop: (id) => run(id, 'stop', () => doNotContact(id), moveTo(id, 'stop')),
+  };
 
   return (
     <div className={styles.workspace}>
@@ -123,8 +117,8 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
           </div>
         )}
         {selected && (
-          <ProspectDetail key={selected.id} p={selected} actions={actions} noReplyHours={noReplyHours}
-            pending={pending?.id === selected.id ? pending.kind : null} justSent={justSent === selected.id} sendBlocked={sendBlocked(selected)} />
+          <ProspectDetail key={selected.id} p={selected} actions={actions}
+            pending={pending?.id === selected.id ? pending.kind : null} justSent={justSent === selected.id} sendBlocked={selected.sendBlocked} />
         )}
       </div>
     </div>

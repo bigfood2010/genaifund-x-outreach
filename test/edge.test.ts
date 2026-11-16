@@ -1,30 +1,22 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { describe, test } from 'node:test';
-import type { Config } from '../src/server/config.ts';
-import { decrypt, encrypt, sign, unsign } from '../src/server/crypto.ts';
-import { Store, type Reason } from '../src/server/db.ts';
-import { assess, finalize, verifyReasons } from '../src/server/llm.ts';
+import { finalize, verifyReasons } from '../src/server/domain/evidence.ts';
+import { MAX_SEEDS, POSTS_PER_PERSON, runCostCeiling, searchSize, seedFollowSize } from '../src/server/domain/pricing.ts';
+import { bucketOf, canTransition, isLate, testModeRefusal, type Reason, type ReviewStatus, type SendInfo } from '../src/server/domain/prospect.ts';
+import type { Config } from '../src/server/infra/config.ts';
+import { decrypt, encrypt, sign, unsign } from '../src/server/infra/crypto.ts';
+import { Store } from '../src/server/infra/db.ts';
+import { assess } from '../src/server/infra/llm.ts';
+import { snowflakeTime, XApiError, XClient } from '../src/server/infra/x.ts';
 import { Outreach, SendRefused } from '../src/server/outreach.ts';
-import { bucketOf, prospectViews } from '../src/server/views.ts';
-import { XApiError, XClient } from '../src/server/x.ts';
+import { explainXError } from '../src/server/web/errors.ts';
+import { prospectViews } from '../src/server/web/views.ts';
 import { segment } from '../src/ui/lib/highlight.ts';
 import { gap, relative } from '../src/ui/lib/time.ts';
+import { baseCfg, cfg, okDm, realClient, rows, setup } from './support.ts';
 
 const R = (source_id: string, quote: string): Reason => ({ claim: 'c', source_id, quote });
-const baseCfg = { liveSending: false, testRecipients: ['friend'], maxProspectsPerRun: 10, noReplyHours: 72, senderDescription: 's' };
-const cfg = baseCfg as unknown as Config;
-
-function setup(sendDm: (id: string, text: string) => Promise<any>, c: Config = cfg, chat?: () => Promise<any>) {
-  const store = new Store(':memory:');
-  const x = { senderId: 'me', sendDm, chatConversations: chat } as unknown as XClient;
-  const run = store.createRun('search', '{}');
-  const add = (id: string, username: string, status: 'approved' | 'needs_review' = 'approved') =>
-    store.insertProspect({ x_user_id: id, username, name: username, bio: '', receives_dm: 1, posts_json: '[]', fit: 'strong', reasons_json: '[]', draft: 'hi', status, run_id: run });
-  return { store, run, outreach: new Outreach(c, store, x), add };
-}
-const rows = (store: Store, sql: string) => store.db.prepare(sql).all() as any[];
-const okDm = async () => ({ data: { dm_event_id: '1', dm_conversation_id: 'c' } });
 
 // 1. verifyReasons / finalize
 describe('llm.verifyReasons and finalize', () => {
@@ -80,6 +72,11 @@ describe('llm.verifyReasons and finalize', () => {
   test('one valid quote out of many invalid is none with empty draft', () => {
     const out = finalize(profile, { fit: 'strong', draft: 'Hi', reasons: [R('bio', 'Robotics'), R('p9', 'x'), R('bio', '')] });
     assert.deepEqual([out.fit, out.draft, out.reasons.length], ['none', '', 1]);
+  });
+  test('a model reply with the wrong shape is none with no reasons, never a draft', () => {
+    for (const bad of [null, 'text', {}, { fit: 'strong', draft: 'Hello' }, { fit: 'strong', reasons: [], draft: 5 }, { fit: 'strong', draft: 'Hello', reasons: [{ claim: 'a' }] }]) {
+      assert.deepEqual(finalize(profile, bad), { fit: 'none', reasons: [], draft: '' });
+    }
   });
   test('zero reasons is none', () => {
     assert.deepEqual(finalize(profile, { fit: 'strong', draft: 'Hi', reasons: [] }), { fit: 'none', reasons: [], draft: '' });
@@ -305,6 +302,22 @@ describe('Store', () => {
     store.review('u', 'rejected', '');
     assert.equal(store.prospect('u')!.draft, '');
   });
+  test('saveDraft replaces only the draft and leaves the status', () => {
+    const { store, add } = setup(okDm);
+    add('u', 'n', 'needs_review');
+    store.saveDraft('u', 'edited');
+    assert.equal(store.prospect('u')!.draft, 'edited');
+    assert.equal(store.prospect('u')!.status, 'needs_review');
+    store.saveDraft('ghost', 'x');
+    assert.equal(rows(store, 'select * from prospect').length, 1);
+  });
+  test('hasMessage is true only once a message row exists', () => {
+    const { store, add } = setup(okDm);
+    add('u', 'n');
+    assert.equal(store.hasMessage('u'), false);
+    store.claimSend('me', 'u', 't');
+    assert.equal(store.hasMessage('u'), true);
+  });
   test('review on a missing prospect is a no-op', () => {
     const s = new Store(':memory:');
     s.review('ghost', 'approved', 'x');
@@ -363,9 +376,9 @@ describe('Outreach.send', () => {
     await assert.rejects(outreach.send('u1', 'hi'), SendRefused);
     assert.equal(rows(store, 'select * from message').length, 0);
   });
-  test('rejected, no_fit and not_dm_able are refused', async () => {
+  test('rejected and no_fit are refused', async () => {
     const { outreach, add, store } = setup(async () => assert.fail('no call'));
-    for (const s of ['rejected', 'no_fit', 'not_dm_able'] as const) {
+    for (const s of ['rejected', 'no_fit'] as const) {
       add(s, 'friend');
       store.review(s, s);
       await assert.rejects(outreach.send(s, 'hi'), /approved/);
@@ -376,9 +389,8 @@ describe('Outreach.send', () => {
     await assert.rejects(outreach.send('ghost', 'hi'), SendRefused);
   });
   test('no connected account is refused', async () => {
-    const store = new Store(':memory:');
-    const run = store.createRun('s', '{}');
-    store.insertProspect({ x_user_id: 'u', username: 'friend', name: 'n', bio: '', receives_dm: 1, posts_json: '[]', fit: 'strong', reasons_json: '[]', draft: '', status: 'approved', run_id: run });
+    const { store, add } = setup(okDm);
+    add('u', 'friend');
     const o = new Outreach(cfg, store, { senderId: undefined } as unknown as XClient);
     await assert.rejects(o.send('u', 'hi'), SendRefused);
   });
@@ -459,12 +471,7 @@ describe('Outreach.send', () => {
     assert.deepEqual(res.map((r) => r.status).sort(), ['fulfilled', 'rejected']);
   });
   test('concurrent double send with the real XClient makes exactly one fetch to X', async () => {
-    const key = randomBytes(32);
-    const store = new Store(':memory:');
-    const xcfg = { ...baseCfg, tokenKey: key } as unknown as Config;
-    store.saveAccount({ x_user_id: 'me', username: 'me', access_token: encrypt(key, 'tok'), refresh_token: encrypt(key, 'ref'), expires_at: Date.now() + 3_600_000 });
-    const run = store.createRun('s', '{}');
-    store.insertProspect({ x_user_id: 'u1', username: 'friend', name: 'n', bio: '', receives_dm: 1, posts_json: '[]', fit: 'strong', reasons_json: '[]', draft: '', status: 'approved', run_id: run });
+    const { store, outreach } = realClient();
     const realFetch = globalThis.fetch;
     const urls: string[] = [];
     globalThis.fetch = (async (u: string, init: any) => {
@@ -473,26 +480,28 @@ describe('Outreach.send', () => {
       return new Response(JSON.stringify({ data: { dm_event_id: '5', dm_conversation_id: 'c5' } }), { status: 201 });
     }) as any;
     try {
-      const o = new Outreach(xcfg, store, new XClient(xcfg, store));
-      const res = await Promise.allSettled([o.send('u1', 'hi'), o.send('u1', 'hi')]);
+      const res = await Promise.allSettled([outreach.send('u1', 'hi'), outreach.send('u1', 'hi')]);
       assert.deepEqual(res.map((r) => r.status).sort(), ['fulfilled', 'rejected']);
     } finally { globalThis.fetch = realFetch; }
     assert.deepEqual(urls, ['POST https://api.x.com/2/dm_conversations/with/u1/messages']);
     assert.equal(rows(store, 'select state from message')[0].state, 'sent');
   });
   test('real XClient with a fetch that throws TypeError ends in state unknown', async () => {
-    const key = randomBytes(32);
-    const store = new Store(':memory:');
-    const xcfg = { ...baseCfg, tokenKey: key } as unknown as Config;
-    store.saveAccount({ x_user_id: 'me', username: 'me', access_token: encrypt(key, 'tok'), refresh_token: encrypt(key, 'ref'), expires_at: Date.now() + 3_600_000 });
-    const run = store.createRun('s', '{}');
-    store.insertProspect({ x_user_id: 'u1', username: 'friend', name: 'n', bio: '', receives_dm: 1, posts_json: '[]', fit: 'strong', reasons_json: '[]', draft: '', status: 'approved', run_id: run });
+    const { store, outreach } = realClient();
     const realFetch = globalThis.fetch;
     globalThis.fetch = (async () => { throw new TypeError('fetch failed'); }) as any;
     try {
-      await assert.rejects(new Outreach(xcfg, store, new XClient(xcfg, store)).send('u1', 'hi'), TypeError);
+      await assert.rejects(outreach.send('u1', 'hi'), TypeError);
     } finally { globalThis.fetch = realFetch; }
     assert.equal(rows(store, 'select state from message')[0].state, 'unknown');
+  });
+  test('send happens once, then the database refuses a second message', async () => {
+    let calls = 0;
+    const { outreach, add } = setup(async () => (calls++, okDm()));
+    add('u1', 'friend');
+    await outreach.send('u1', 'hi');
+    await assert.rejects(outreach.send('u1', 'hi'), SendRefused);
+    assert.equal(calls, 1);
   });
   test('two different recipients send in parallel, each once', async () => {
     let calls = 0;
@@ -508,6 +517,11 @@ describe('Outreach.send', () => {
     await outreach.send('u1', 'edited text  ');
     assert.equal(rows(store, 'select text from message')[0].text, 'edited text  ');
   });
+});
+
+// 4b. snowflake
+test('snowflake ids decode to the live-observed reply time', () => {
+  assert.equal(snowflakeTime('2122375930647846912').toISOString(), '2026-11-16T17:07:08.361Z');
 });
 
 // 5. syncReplies
@@ -605,41 +619,72 @@ describe('Outreach.syncReplies', () => {
   });
 });
 
-// 6. views
-describe('views', () => {
+// 6. views and domain rules
+describe('domain.prospect', () => {
   const now = Date.parse('2026-11-17T00:00:00Z');
   const H = 3_600_000;
   const at = (ms: number) => new Date(now - ms).toISOString();
-  test('exactly noReplyHours old is still sent', () => {
-    assert.equal(bucketOf('approved', 'sent', at(72 * H), null, 72, now), 'sent');
+  const send = (state: SendInfo['state'], repliedAt: string | null = null, late = false): SendInfo => ({ state, repliedAt, late });
+
+  test('exactly noReplyHours old is not late', () => {
+    assert.equal(isLate(at(72 * H), 72, now), false);
   });
-  test('one millisecond past noReplyHours is attention', () => {
-    assert.equal(bucketOf('approved', 'sent', at(72 * H + 1), null, 72, now), 'attention');
+  test('one millisecond past noReplyHours is late', () => {
+    assert.equal(isLate(at(72 * H + 1), 72, now), true);
   });
-  test('one millisecond before noReplyHours is sent', () => {
-    assert.equal(bucketOf('approved', 'sent', at(72 * H - 1), null, 72, now), 'sent');
+  test('one millisecond before noReplyHours is not late', () => {
+    assert.equal(isLate(at(72 * H - 1), 72, now), false);
   });
-  test('noReplyHours of 0 flips to attention after one millisecond', () => {
-    assert.equal(bucketOf('approved', 'sent', at(1), null, 0, now), 'attention');
-    assert.equal(bucketOf('approved', 'sent', at(0), null, 0, now), 'sent');
+  test('noReplyHours of 0 flips to late after one millisecond', () => {
+    assert.equal(isLate(at(1), 0, now), true);
+    assert.equal(isLate(at(0), 0, now), false);
   });
-  test('sent with a null sentAt stays sent', () => {
-    assert.equal(bucketOf('approved', 'sent', null, null, 72, now), 'sent');
+  test('a null or unparseable sentAt is never late', () => {
+    assert.equal(isLate(null, 72, now), false);
+    assert.equal(isLate('garbage', 72, now), false);
   });
-  test('sent with an unparseable sentAt stays sent', () => {
-    assert.equal(bucketOf('approved', 'sent', 'garbage', null, 72, now), 'sent');
+  test('a late sent message is attention, a fresh one is sent', () => {
+    assert.equal(bucketOf('approved', send('sent')), 'sent');
+    assert.equal(bucketOf('approved', send('sent', null, true)), 'attention');
   });
   test('sending, failed and unknown are attention', () => {
-    for (const s of ['sending', 'failed', 'unknown']) assert.equal(bucketOf('approved', s, null, null, 72, now), 'attention', s);
+    for (const s of ['sending', 'failed', 'unknown'] as const) assert.equal(bucketOf('approved', send(s)), 'attention', s);
   });
   test('replied wins over every send state', () => {
-    for (const s of ['sending', 'failed', 'unknown', 'sent', null]) assert.equal(bucketOf('approved', s, null, at(0), 72, now), 'replied', String(s));
+    for (const s of ['sending', 'failed', 'unknown', 'sent'] as const) assert.equal(bucketOf('approved', send(s, at(0), true)), 'replied', s);
   });
-  test('statuses without a send state map to review, approved or skipped', () => {
-    assert.equal(bucketOf('needs_review', null, null, null, 72, now), 'review');
-    assert.equal(bucketOf('approved', undefined, null, null, 72, now), 'approved');
-    for (const s of ['rejected', 'no_fit', 'not_dm_able', 'do_not_contact', 'weird']) assert.equal(bucketOf(s, null, null, null, 72, now), 'skipped', s);
+  test('statuses without a send map to review, approved or skipped', () => {
+    assert.equal(bucketOf('needs_review', null), 'review');
+    assert.equal(bucketOf('approved', null), 'approved');
+    for (const s of ['rejected', 'no_fit', 'do_not_contact'] as const) assert.equal(bucketOf(s, null), 'skipped', s);
   });
+  test('a send keeps its bucket whatever the status becomes', () => {
+    assert.equal(bucketOf('do_not_contact', send('sent')), 'sent');
+  });
+
+  test('canTransition allows the review flow and nothing out of do_not_contact', () => {
+    assert.equal(canTransition('needs_review', 'approved'), true);
+    assert.equal(canTransition('needs_review', 'rejected'), true);
+    assert.equal(canTransition('approved', 'needs_review'), true);
+    assert.equal(canTransition('rejected', 'needs_review'), true);
+    assert.equal(canTransition('no_fit', 'needs_review'), true);
+    for (const to of ['needs_review', 'approved', 'rejected', 'no_fit', 'do_not_contact'] as ReviewStatus[]) assert.equal(canTransition('do_not_contact', to), false, to);
+  });
+  test('canTransition refuses approving a rejected or no_fit person without review', () => {
+    assert.equal(canTransition('rejected', 'approved'), false);
+    assert.equal(canTransition('no_fit', 'approved'), false);
+  });
+
+  test('testModeRefusal: live sending, listed (any case) and unlisted users', () => {
+    const c = { liveSending: false, testRecipients: ['friend', 'pal'] };
+    assert.equal(testModeRefusal({ ...c, liveSending: true }, 'stranger'), null);
+    assert.equal(testModeRefusal(c, 'FrIeNd'), null);
+    assert.equal(testModeRefusal(c, 'stranger'), 'Test mode: sends only to @friend, @pal');
+    assert.equal(testModeRefusal({ liveSending: false, testRecipients: [] }, 'x'), 'Test mode: sends only to no one');
+  });
+});
+
+describe('web.views', () => {
   test('prospectViews turns sqlite times into UTC ISO and buckets a fresh send as sent', () => {
     const { store, add } = setup(okDm);
     add('u1', 'friend');
@@ -648,6 +693,24 @@ describe('views', () => {
     assert.match(v.send!.sentAt!, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
     assert.match(v.updatedAt, /Z$/);
     assert.equal(v.bucket, 'sent');
+    assert.equal(v.send!.late, false);
+  });
+  test('prospectViews marks an old send late and moves it to attention', () => {
+    const { store, add } = setup(okDm);
+    add('u1', 'friend');
+    store.markSent(store.claimSend('me', 'u1', 't')!, 'e', 'c');
+    const [v] = prospectViews(store, cfg, Date.now() + 73 * 3_600_000);
+    assert.equal(v.send!.late, true);
+    assert.equal(v.bucket, 'attention');
+  });
+  test('prospectViews exposes the text that was really sent, not the draft', () => {
+    const { store, add } = setup(okDm);
+    add('u1', 'friend');
+    store.markSent(store.claimSend('me', 'u1', 'what went out')!, 'e', 'c');
+    store.saveDraft('u1', 'changed later');
+    const [v] = prospectViews(store, cfg);
+    assert.equal(v.send!.text, 'what went out');
+    assert.equal(v.draft, 'changed later');
   });
   test('prospectViews with a prospect that has no message has send null', () => {
     const { store, add } = setup(okDm);
@@ -655,6 +718,32 @@ describe('views', () => {
     const [v] = prospectViews(store, cfg);
     assert.equal(v.send, null);
     assert.equal(v.bucket, 'review');
+  });
+  test('prospectViews computes sendBlocked on the server from the test list', () => {
+    const { store, add } = setup(okDm);
+    add('u1', 'friend');
+    add('u2', 'stranger');
+    const byId = Object.fromEntries(prospectViews(store, cfg).map((v) => [v.id, v.sendBlocked]));
+    assert.equal(byId.u1, null);
+    assert.equal(byId.u2, 'Test mode: sends only to @friend');
+    for (const v of prospectViews(store, { ...baseCfg, liveSending: true } as unknown as Config)) assert.equal(v.sendBlocked, null);
+  });
+});
+
+describe('domain.pricing', () => {
+  test('searchSize clamps to 10..100', () => {
+    assert.equal(searchSize(1), 10);
+    assert.equal(searchSize(10), 40);
+    assert.equal(searchSize(50), 100);
+  });
+  test('seedFollowSize splits the candidate budget across seeds and never drops below 1', () => {
+    assert.equal(seedFollowSize(10, 4), 10);
+    assert.equal(seedFollowSize(1, 100), 1);
+  });
+  test('cost ceiling uses the same constants as the real calls', () => {
+    const per = POSTS_PER_PERSON * 0.005;
+    assert.ok(Math.abs(runCostCeiling('seeds', 10) - (MAX_SEEDS * 0.01 + 10 * 4 * 0.01 + 10 * per)) < 1e-9);
+    assert.ok(Math.abs(runCostCeiling('search', 10) - (searchSize(10) * 0.015 + 10 * per)) < 1e-9);
   });
 });
 
@@ -826,28 +915,28 @@ describe('time', () => {
   });
 });
 
-// 10. XApiError.explanation
-describe('XApiError.explanation', () => {
-  test('402 explains credits', () => assert.match(new XApiError(402, 'http', 'm').explanation, /credits/));
-  test('429 explains rate limit', () => assert.match(new XApiError(429, 'http', 'm').explanation, /rate limit/));
-  test('401 explains reconnect', () => assert.match(new XApiError(401, 'http', 'm').explanation, /Connect the account again/));
+// 10. explainXError
+describe('explainXError', () => {
+  test('402 explains credits', () => assert.match(explainXError(new XApiError(402, 'http', 'm')), /credits/));
+  test('429 explains rate limit', () => assert.match(explainXError(new XApiError(429, 'http', 'm')), /rate limit/));
+  test('401 explains reconnect', () => assert.match(explainXError(new XApiError(401, 'http', 'm')), /Connect the account again/));
   test('a dm- problem type names the problem', () => {
     const e = new XApiError(403, 'https://api.x.com/2/problems/dm-sender-declined-dms', 'm');
-    assert.match(e.explanation, /\(dm-sender-declined-dms\)/);
-    assert.match(e.explanation, /may not accept DMs/);
+    assert.match(explainXError(e), /\(dm-sender-declined-dms\)/);
+    assert.match(explainXError(e), /may not accept DMs/);
   });
   test('unknown type falls back to the message', () => {
-    assert.equal(new XApiError(500, 'https://api.x.com/2/problems/other', 'boom').explanation, 'boom');
+    assert.equal(explainXError(new XApiError(500, 'https://api.x.com/2/problems/other', 'boom')), 'boom');
   });
   test('status wins over a dm- type', () => {
-    assert.match(new XApiError(429, 'x/dm-foo', 'm').explanation, /rate limit/);
-    assert.match(new XApiError(402, 'x/dm-foo', 'm').explanation, /credits/);
+    assert.match(explainXError(new XApiError(429, 'x/dm-foo', 'm')), /rate limit/);
+    assert.match(explainXError(new XApiError(402, 'x/dm-foo', 'm')), /credits/);
   });
   test('empty type and empty message give an empty explanation without throwing', () => {
-    assert.equal(new XApiError(500, '', '').explanation, '');
+    assert.equal(explainXError(new XApiError(500, '', '')), '');
   });
   test('a type that merely contains "adm" without "dm-" is not a DM error', () => {
-    assert.equal(new XApiError(400, 'x/problems/admin', 'bad').explanation, 'bad');
+    assert.equal(explainXError(new XApiError(400, 'x/problems/admin', 'bad')), 'bad');
   });
   test('exposes status and type and is an Error', () => {
     const e = new XApiError(418, 't', 'm');

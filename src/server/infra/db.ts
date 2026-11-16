@@ -1,28 +1,25 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { ReviewStatus, SendState } from '../domain/prospect.ts';
 
-export type ReviewStatus = 'needs_review' | 'approved' | 'rejected' | 'no_fit' | 'not_dm_able' | 'do_not_contact';
-export type SendState = 'sending' | 'sent' | 'failed' | 'unknown';
-
-export type Reason = { claim: string; source_id: string; quote: string };
-export type Post = { id: string; text: string; created_at?: string };
-
-export type Prospect = {
+type Prospect = {
   x_user_id: string; username: string; name: string; bio: string; receives_dm: number | null;
   posts_json: string; fit: string | null; reasons_json: string; draft: string; status: ReviewStatus;
-  note: string | null; run_id: number; created_at: string; updated_at: string;
+  run_id: number; created_at: string; updated_at: string;
 };
 
-export type Message = {
+type Message = {
   id: number; sender_id: string; recipient_id: string; text: string; state: SendState;
   dm_event_id: string | null; conversation_id: string | null; error: string | null;
   created_at: string; sent_at: string | null; replied_at: string | null;
 };
 
-export type Run = { id: number; kind: string; input: string; status: string; note: string | null; created_at: string };
+type ProspectRow = Prospect & Partial<Pick<Message, 'state' | 'error' | 'sent_at' | 'replied_at' | 'dm_event_id'>> & { sent_text?: string };
 
-export type Account = { x_user_id: string; username: string; access_token: string; refresh_token: string; expires_at: number };
+type Run = { id: number; kind: string; input: string; status: string; note: string | null; created_at: string };
+
+type Account = { x_user_id: string; username: string; access_token: string; refresh_token: string; expires_at: number };
 
 const SCHEMA = `
 create table if not exists account (
@@ -85,20 +82,24 @@ export class Store {
     return Boolean(this.db.prepare('select 1 from prospect where x_user_id = ?').get(xUserId));
   }
 
-  insertProspect(p: Omit<Prospect, 'created_at' | 'updated_at' | 'note'> & { note?: string | null }): void {
-    this.db.prepare(`insert or ignore into prospect (x_user_id, username, name, bio, receives_dm, posts_json, fit, reasons_json, draft, status, note, run_id)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(p.x_user_id, p.username, p.name, p.bio, p.receives_dm, p.posts_json, p.fit, p.reasons_json, p.draft, p.status, p.note ?? null, p.run_id);
+  insertProspect(p: Omit<Prospect, 'created_at' | 'updated_at'>): void {
+    this.db.prepare(`insert or ignore into prospect (x_user_id, username, name, bio, receives_dm, posts_json, fit, reasons_json, draft, status, run_id)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(p.x_user_id, p.username, p.name, p.bio, p.receives_dm, p.posts_json, p.fit, p.reasons_json, p.draft, p.status, p.run_id);
   }
 
   prospect(xUserId: string): Prospect | undefined {
     return this.db.prepare('select * from prospect where x_user_id = ?').get(xUserId) as Prospect | undefined;
   }
 
-  prospects(): Array<Prospect & Partial<Pick<Message, 'state' | 'error' | 'sent_at' | 'replied_at' | 'dm_event_id'>>> {
-    return this.db.prepare(`select p.*, m.state, m.error, m.sent_at, m.replied_at, m.dm_event_id
+  hasMessage(xUserId: string): boolean {
+    return Boolean(this.db.prepare('select 1 from message where recipient_id = ?').get(xUserId));
+  }
+
+  prospects(): ProspectRow[] {
+    return this.db.prepare(`select p.*, m.state, m.text as sent_text, m.error, m.sent_at, m.replied_at, m.dm_event_id
       from prospect p left join message m on m.recipient_id = p.x_user_id
-      order by p.updated_at desc`).all() as any;
+      order by p.updated_at desc`).all() as unknown as ProspectRow[];
   }
 
   review(xUserId: string, status: ReviewStatus, draft?: string): void {
@@ -106,12 +107,17 @@ export class Store {
       .run(status, draft ?? null, xUserId);
   }
 
+  saveDraft(xUserId: string, draft: string): void {
+    this.db.prepare(`update prospect set draft = ?, updated_at = datetime('now') where x_user_id = ?`).run(draft, xUserId);
+  }
+
+  // Returns null on UNIQUE violation so the caller can refuse, any other error is a real failure and is rethrown.
   claimSend(senderId: string, recipientId: string, text: string): number | null {
     try {
       return Number(this.db.prepare(`insert into message (sender_id, recipient_id, text, state) values (?, ?, ?, 'sending')`)
         .run(senderId, recipientId, text).lastInsertRowid);
-    } catch (e: any) {
-      if (String(e.message).includes('UNIQUE')) return null;
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('UNIQUE')) return null;
       throw e;
     }
   }

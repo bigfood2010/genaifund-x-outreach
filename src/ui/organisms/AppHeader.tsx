@@ -1,4 +1,4 @@
-import { signOut } from '@/server/actions.ts';
+import { signOut } from '@/server/web/actions.ts';
 import { Button } from '../atoms/Button.tsx';
 import { NavLink } from '../molecules/NavLink.tsx';
 import styles from './AppHeader.module.css';

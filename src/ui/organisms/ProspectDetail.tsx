@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { ProspectView } from '@/server/views.ts';
+import type { ReviewStatus } from '@/server/domain/prospect.ts';
+import type { ProspectView } from '@/server/web/views.ts';
 import { Button } from '../atoms/Button.tsx';
 import { Motion } from '../atoms/Motion.tsx';
 import { DraftEditor } from '../molecules/DraftEditor.tsx';
@@ -17,24 +18,24 @@ export type DetailActions = {
   stop: (id: string) => void;
 };
 
-const SKIP_NOTE: Record<string, string> = {
+const xUrl = (username: string) => `https://x.com/${username}`;
+
+const SKIP_NOTE: Partial<Record<ReviewStatus, string>> = {
   no_fit: 'Fewer than two real quotes supported a fit, so no message was drafted.',
   rejected: 'You skipped this person.',
   do_not_contact: 'Marked do not contact. The tool will never message this person.',
 };
 
-function Delivery({ p, justSent, noReplyHours }: { p: ProspectView; justSent: boolean; noReplyHours: number }) {
+function Delivery({ p, justSent }: { p: ProspectView; justSent: boolean }) {
   const s = p.send!;
-  const x = `https://x.com/${p.username}`;
   let title = '';
   let body = '';
   if (s.repliedAt && s.sentAt) {
     title = `Replied ${gap(s.sentAt, s.repliedAt)} after your message`;
     body = 'X encrypts chat replies, so the reply itself is only readable in X.';
   } else if (s.state === 'sent') {
-    const late = s.sentAt && Date.now() - Date.parse(s.sentAt) > noReplyHours * 3_600_000;
-    title = late ? `No reply after ${noReplyHours} hours` : `Sent ${relative(s.sentAt!)}`;
-    body = late ? 'X rules do not allow a follow-up without their permission. Leave it here or mark do not contact.' : 'Waiting for a reply. Replies are checked when this page opens.';
+    title = s.late ? `No reply after ${gap(s.sentAt!, new Date().toISOString())}` : `Sent ${relative(s.sentAt!)}`;
+    body = s.late ? 'X rules do not allow a follow-up without their permission. Leave it here or mark do not contact.' : 'Waiting for a reply. Replies are checked when this page opens.';
   } else if (s.state === 'unknown') {
     title = 'X did not confirm this message';
     body = 'It may or may not have arrived. Check the chat in X. The tool will not try again.';
@@ -49,14 +50,14 @@ function Delivery({ p, justSent, noReplyHours }: { p: ProspectView; justSent: bo
         <h3 className={styles.deliveryTitle}>{title}</h3>
       </div>
       <p className={styles.muted}>{body}</p>
-      <blockquote className={styles.sent}>{p.draft}</blockquote>
-      <a className={styles.link} href={x} target="_blank" rel="noreferrer">Open @{p.username} on X</a>
+      <blockquote className={styles.sent}>{s.text}</blockquote>
+      <a className={styles.link} href={xUrl(p.username)} target="_blank" rel="noreferrer">Open @{p.username} on X</a>
     </section>
   );
 }
 
-export function ProspectDetail({ p, actions, pending, justSent, sendBlocked, noReplyHours }: {
-  p: ProspectView; actions: DetailActions; pending: string | null; justSent: boolean; sendBlocked: string | null; noReplyHours: number;
+export function ProspectDetail({ p, actions, pending, justSent, sendBlocked }: {
+  p: ProspectView; actions: DetailActions; pending: string | null; justSent: boolean; sendBlocked: string | null;
 }) {
   const [draft, setDraft] = useState(p.draft);
   useEffect(() => setDraft(p.draft), [p.id, p.draft]);
@@ -69,16 +70,16 @@ export function ProspectDetail({ p, actions, pending, justSent, sendBlocked, noR
         <div className={styles.who}>
           <h2 className={styles.name}>{p.name}</h2>
           <p className={styles.muted}>
-            <a className={styles.handle} href={`https://x.com/${p.username}`} target="_blank" rel="noreferrer">@{p.username}</a>
+            <a className={styles.handle} href={xUrl(p.username)} target="_blank" rel="noreferrer">@{p.username}</a>
           </p>
         </div>
       </header>
 
-      {p.send && <Delivery p={p} justSent={justSent} noReplyHours={noReplyHours} />}
+      {p.send && <Delivery p={p} justSent={justSent} />}
 
       {p.bucket === 'skipped' && (
         <section className={styles.section}>
-          <p className={styles.muted}>{p.note ?? SKIP_NOTE[p.status] ?? ''}</p>
+          <p className={styles.muted}>{SKIP_NOTE[p.status] ?? ''}</p>
           {(p.status === 'rejected' || p.status === 'no_fit') && (
             <Button variant="ghost" onClick={() => actions.decide(p.id, 'restore')} pending={pending === 'restore'}>Move to review</Button>
           )}

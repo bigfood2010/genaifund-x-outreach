@@ -1,6 +1,6 @@
 'use client';
 
-import type { Bucket } from '@/server/views.ts';
+import type { Bucket } from '@/server/domain/prospect.ts';
 import styles from './StatusTabs.module.css';
 
 export const TABS: Array<{ id: Bucket; label: string }> = [

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { currentOperator } from '@/server/session.ts';
+import { currentOperator } from '@/server/web/session.ts';
 import { ConnectPanel } from '@/ui/organisms/ConnectPanel.tsx';
 
 export const dynamic = 'force-dynamic';
