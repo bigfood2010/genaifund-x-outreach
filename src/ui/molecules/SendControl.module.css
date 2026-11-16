@@ -1,0 +1,7 @@
+.control { display: flex; align-items: center; gap: 16px; }
+
+.cancel { animation: appear var(--fast) var(--ease) both; }
+
+.blocked { color: var(--slate); font-size: 15px; max-width: 46ch; }
+
+@keyframes appear { from { opacity: 0; transform: translateX(-4px); } }
