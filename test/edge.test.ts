@@ -11,7 +11,7 @@ import { assess } from '../src/server/infra/llm.ts';
 import { snowflakeTime, XApiError, XClient } from '../src/server/infra/x.ts';
 import { Outreach, SendRefused } from '../src/server/outreach.ts';
 import { explainXError } from '../src/server/errors.ts';
-import { prospectViews } from '../src/server/web/views.ts';
+import { prospectViews, runViews } from '../src/server/web/views.ts';
 import { segment } from '../src/ui/lib/highlight.ts';
 import { gap, relative } from '../src/ui/lib/time.ts';
 import { baseCfg, cfg, okDm, realClient, rows, setup } from './support.ts';
@@ -942,5 +942,17 @@ describe('explainXError', () => {
     const e = new XApiError(418, 't', 'm');
     assert.ok(e instanceof Error);
     assert.deepEqual([e.status, e.type, e.message], [418, 't', 'm']);
+  });
+});
+
+describe('runViews', () => {
+  test('counts checked people and drafts per run separately', () => {
+    const store = new Store(':memory:');
+    const run = store.createRun('search', JSON.stringify({ mode: 'search', source: 'q' }));
+    const base = { bio: '', receives_dm: 1, posts_json: '[]', reasons_json: '[]', run_id: run };
+    store.insertProspect({ ...base, x_user_id: 'a', username: 'a', name: 'a', fit: 'strong', draft: 'hi', status: 'needs_review' });
+    store.insertProspect({ ...base, x_user_id: 'b', username: 'b', name: 'b', fit: null, draft: '', status: 'no_fit' });
+    const [view] = runViews(store);
+    assert.deepEqual([view.found, view.drafts], [2, 1]);
   });
 });

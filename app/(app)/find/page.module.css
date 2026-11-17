@@ -10,6 +10,6 @@
 .history { display: grid; gap: 20px; padding-top: 32px; }
 
 @media (max-width: 860px) {
-  .grid { grid-template-columns: 1fr; gap: 40px; }
+  .grid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
   .history { padding-top: 0; }
 }

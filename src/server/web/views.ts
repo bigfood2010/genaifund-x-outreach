@@ -26,13 +26,17 @@ export function prospectViews(store: Store, cfg: Config, now = Date.now()): Pros
   });
 }
 
-export type RunView = { id: number; mode: string; source: string; status: string; note: string | null; createdAt: string; found: number };
+export type RunView = { id: number; mode: string; source: string; status: string; note: string | null; createdAt: string; found: number; drafts: number };
 
 export function runViews(store: Store): RunView[] {
-  const counts = new Map<number, number>();
-  for (const p of store.prospects()) counts.set(p.run_id, (counts.get(p.run_id) ?? 0) + 1);
+  const found = new Map<number, number>();
+  const drafts = new Map<number, number>();
+  for (const p of store.prospects()) {
+    found.set(p.run_id, (found.get(p.run_id) ?? 0) + 1);
+    if (p.draft) drafts.set(p.run_id, (drafts.get(p.run_id) ?? 0) + 1);
+  }
   return store.runs().map((r) => {
     const input = JSON.parse(r.input) as { mode: string; source: string };
-    return { id: r.id, mode: input.mode, source: input.source, status: r.status, note: r.note, createdAt: utc(r.created_at)!, found: counts.get(r.id) ?? 0 };
+    return { id: r.id, mode: input.mode, source: input.source, status: r.status, note: r.note, createdAt: utc(r.created_at)!, found: found.get(r.id) ?? 0, drafts: drafts.get(r.id) ?? 0 };
   });
 }
