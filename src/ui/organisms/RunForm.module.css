@@ -11,22 +11,12 @@
 .label { font-size: 15px; font-weight: 500; }
 
 .input {
-  width: 100%;
+  composes: field from '../atoms/Field.module.css';
   padding: 14px 16px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-input);
-  background: var(--paper);
-  font-size: 16px;
   line-height: 1.5;
-  resize: vertical;
-  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
 }
 
 .input::placeholder { color: var(--smoke); }
-
-.input:hover { border-color: #dcdcde; }
-
-.input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(23, 25, 28, 0.08); }
 
 .help { color: var(--slate); font-size: 14px; }
 
@@ -35,5 +25,3 @@
 .footer button { min-width: 132px; }
 
 .footer { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-
-.error { color: var(--danger); font-size: 15px; }

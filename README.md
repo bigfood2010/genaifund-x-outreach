@@ -58,4 +58,4 @@ npm test           # 151 unit tests, no network
 npm run typecheck
 ```
 
-Code layout: `src/server` holds the domain (X client, LLM, store, outreach rules, server actions). `src/ui` holds atoms, molecules and organisms. `app/` holds thin routes.
+Code layout: `src/server/domain` holds the pure rules (statuses, buckets, evidence, pricing, limits). `src/server/infra` holds the store, X client, LLM call, crypto and config. `src/server/web` holds server actions, session, views and the container. `src/server/outreach.ts` is the use case. `src/ui` holds atoms, molecules and organisms and imports only `domain` and `web/views` types. `app/` holds thin routes.

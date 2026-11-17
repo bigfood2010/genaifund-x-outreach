@@ -6,9 +6,11 @@ function initials(name: string): string {
   return letters.toUpperCase();
 }
 
-export function Avatar({ name, size = 40 }: { name: string; size?: 32 | 40 | 56 }) {
+const SIZE = 40;
+
+export function Avatar({ name }: { name: string }) {
   return (
-    <span className={styles.avatar} style={{ width: size, height: size, fontSize: size * 0.36 }} aria-hidden>
+    <span className={styles.avatar} style={{ width: SIZE, height: SIZE, fontSize: SIZE * 0.36 }} aria-hidden>
       {initials(name)}
     </span>
   );

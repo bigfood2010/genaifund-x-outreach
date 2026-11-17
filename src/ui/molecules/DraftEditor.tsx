@@ -1,22 +1,19 @@
 'use client';
 
+import { MAX_DRAFT, SOFT_DRAFT } from '@/server/domain/limits.ts';
 import styles from './DraftEditor.module.css';
 
-const SOFT_LIMIT = 400;
-
-export function DraftEditor({ value, onChange, onBlur, readOnly }: {
-  value: string; onChange: (v: string) => void; onBlur?: () => void; readOnly?: boolean;
-}) {
-  const over = value.length > SOFT_LIMIT;
+export function DraftEditor({ value, onChange, onBlur }: { value: string; onChange: (v: string) => void; onBlur?: () => void }) {
+  const over = value.length > SOFT_DRAFT;
   return (
     <div className={styles.editor}>
       <div className={styles.head}>
-        <label htmlFor="draft" className={styles.label}>Message</label>
-        {value.length > SOFT_LIMIT * 0.9 && (
-          <span className={styles.count} data-over={over || undefined} aria-live="polite">{value.length} / {SOFT_LIMIT}</span>
+        <label htmlFor="draft" className="subhead">Message</label>
+        {value.length > SOFT_DRAFT * 0.9 && (
+          <span className={`${styles.count} caption`} data-over={over || undefined} aria-live="polite">{value.length} / {SOFT_DRAFT}</span>
         )}
       </div>
-      <textarea id="draft" className={styles.field} value={value} readOnly={readOnly} maxLength={1000}
+      <textarea id="draft" className={styles.field} value={value} maxLength={MAX_DRAFT}
         onChange={(e) => onChange(e.target.value)} onBlur={onBlur} rows={5} spellCheck />
     </div>
   );

@@ -4,6 +4,4 @@
 
 .cancel { animation: appear var(--fast) var(--ease) both; }
 
-.blocked { color: var(--slate); font-size: 15px; }
-
 @keyframes appear { from { opacity: 0; transform: translateX(-4px); } }

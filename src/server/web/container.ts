@@ -1,8 +1,8 @@
 import 'server-only';
-import { loadConfig, type Config } from './config.ts';
-import { Store } from './db.ts';
-import { Outreach } from './outreach.ts';
-import { XClient } from './x.ts';
+import { loadConfig, type Config } from '../infra/config.ts';
+import { Store } from '../infra/db.ts';
+import { XClient } from '../infra/x.ts';
+import { Outreach } from '../outreach.ts';
 
 type Container = { cfg: Config; store: Store; x: XClient; outreach: Outreach };
 

@@ -15,7 +15,7 @@ export function SendControl({ handle, pending, blockedReason, onSend }: {
     return () => clearTimeout(t);
   }, [armed]);
 
-  if (blockedReason) return <p className={styles.blocked}>{blockedReason}</p>;
+  if (blockedReason) return <p className="muted">{blockedReason}</p>;
 
   return (
     <div className={styles.control}>

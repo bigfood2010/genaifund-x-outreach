@@ -1,7 +1,9 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { startRun, type ActionResult } from '@/server/actions.ts';
+import { MAX_SOURCE, MAX_TARGET } from '@/server/domain/limits.ts';
+import { MAX_SEEDS } from '@/server/domain/pricing.ts';
+import { startRun, type ActionResult } from '@/server/web/actions.ts';
 import { Button } from '../atoms/Button.tsx';
 import { Segmented } from '../molecules/Segmented.tsx';
 import styles from './RunForm.module.css';
@@ -17,7 +19,7 @@ const SOURCE: Record<Mode, { label: string; placeholder: string; help: string }>
   seeds: {
     label: 'Seed accounts',
     placeholder: '@karpathy, @drjimfan',
-    help: 'Looks at who these accounts follow. Up to five accounts.',
+    help: `Looks at who these accounts follow. Up to ${MAX_SEEDS} accounts.`,
   },
 };
 
@@ -30,7 +32,7 @@ export function RunForm({ defaultTarget, maxPerRun, costCeiling }: { defaultTarg
     <form action={action} className={styles.form}>
       <div className={styles.field}>
         <label htmlFor="target" className={styles.label}>Who you want to reach</label>
-        <textarea id="target" name="target" defaultValue={defaultTarget} rows={4} className={styles.input} maxLength={1000} />
+        <textarea id="target" name="target" defaultValue={defaultTarget} rows={4} className={styles.input} maxLength={MAX_TARGET} />
       </div>
 
       <div className={styles.field}>
@@ -41,7 +43,7 @@ export function RunForm({ defaultTarget, maxPerRun, costCeiling }: { defaultTarg
 
       <div className={styles.field}>
         <label htmlFor="source" className={styles.label}>{src.label}</label>
-        <input id="source" name="source" key={mode} placeholder={src.placeholder} className={styles.input} maxLength={500} autoComplete="off" required />
+        <input id="source" name="source" key={mode} placeholder={src.placeholder} className={styles.input} maxLength={MAX_SOURCE} autoComplete="off" required />
         <p className={styles.help}>{src.help}</p>
       </div>
 
@@ -49,7 +51,7 @@ export function RunForm({ defaultTarget, maxPerRun, costCeiling }: { defaultTarg
         <Button pending={pending}>{pending ? 'Starting' : 'Find people'}</Button>
         <p className={styles.help}>Checks up to {maxPerRun} new people. At most {costCeiling[mode]} in X API reads.</p>
       </div>
-      {state && !state.ok && <p className={styles.error} role="alert">{state.message}</p>}
+      {state && !state.ok && <p className="error" role="alert">{state.message}</p>}
     </form>
   );
 }
