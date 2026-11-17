@@ -1,61 +1,79 @@
 # Outreach
 
-Find AI and robotics builders on X, see why each one fits in their own quoted words, review and approve a short DM, send it from your own account, and track who replied. One message per person, ever.
+X DM outreach with human approval. Next.js 16, React 19, Node `node:sqlite`.
 
-## What you need
+## Prerequisites
 
-| Item | Where | Cost |
-|------|-------|------|
-| Node.js 22.18 or newer | nodejs.org | free |
-| An X developer account and app on the pay-per-use plan | console.x.com | first purchase minimum $5, X matches it up to $20 |
-| An LLM key with an OpenAI-compatible endpoint | aistudio.google.com (Gemini) by default | free tier works, paid tier recommended (see Limits) |
-| A second X account you control, for test sends | x.com | free |
+| Item | Get it |
+|---|---|
+| Node >= 22.18 | https://nodejs.org/en/download |
+| X developer app, pay-per-use credits (min $5) | https://console.x.com |
+| Gemini API key | https://aistudio.google.com/apikey |
+| Second X account you own (DM recipient in test mode) | https://x.com/i/flow/signup |
 
-## Setup (about 10 minutes)
+## X app settings
 
-1. Create the X app. In console.x.com open Apps, then User authentication settings. Choose "Read and write and Direct message", type "Web App, Automated App or Bot", callback `http://127.0.0.1:3000/callback`, any website URL. Save and copy the Client ID and Client Secret.
-2. Buy X credits in Billing, Credits. Set a Billing Cycle Cap there, for example $10. Requests stop at the cap.
-3. Get an LLM key. For Gemini: aistudio.google.com, Get API key.
-4. Configure:
-   ```bash
-   cp .env.example .env.local
-   ```
-   Fill in the keys. Generate `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET` with `openssl rand -base64 32`. Put your sending account in `ALLOWED_OPERATORS` and your test account in `TEST_RECIPIENTS`.
-5. Run:
-   ```bash
-   npm install
-   npm run build
-   npm start
-   ```
-6. Open http://127.0.0.1:3000, tick the consent box, Connect X, approve on X.
+https://console.x.com > Apps > your app > User authentication settings
 
-## Using it
+| Field | Value |
+|---|---|
+| App permissions | Read and write and Direct message |
+| Type of App | Web App, Automated App or Bot |
+| Callback URI | `http://127.0.0.1:3000/callback` |
+| Website URL | any valid URL |
 
-Find. Describe who you want to reach, then either search recent posts or give seed accounts whose following list is scanned. Each run checks up to 10 new people who accept DMs from your account and shows the most it can cost in X reads.
+Save. Copy OAuth 2.0 Client ID and Client Secret shown after save.
 
-Review. Each candidate shows why they fit, with the exact words from their bio or posts highlighted. Edit the draft, then Approve or Skip. Approved messages are sent one at a time with Send, which asks once more before sending.
+## `.env.local`
 
-Track. Sent, Replied and Needs attention tabs show delivery state. Replies are checked when the page opens or with Check replies. Anything X refused, anything unconfirmed, and anything without a reply after 72 hours lands in Needs attention.
+| Var | Required | Value | Source |
+|---|---|---|---|
+| `X_CLIENT_ID` | yes | OAuth 2.0 Client ID | https://console.x.com |
+| `X_CLIENT_SECRET` | yes | OAuth 2.0 Client Secret | https://console.x.com |
+| `LLM_API_KEY` | yes | Gemini key | https://aistudio.google.com/apikey |
+| `TOKEN_ENCRYPTION_KEY` | yes | 32 bytes base64 | `openssl rand -base64 32` |
+| `SESSION_SECRET` | yes | 32 bytes base64 | `openssl rand -base64 32` |
+| `ALLOWED_OPERATORS` | yes | sender X usernames, comma separated, `@` optional | your account |
+| `TEST_RECIPIENTS` | yes | only DM recipients allowed in test mode, same format | your second account |
+| `LIVE_SENDING` | no | `true` lifts test mode | default `false` |
+| `LLM_BASE_URL` | no | OpenAI-compatible endpoint | default Gemini |
+| `LLM_MODEL` | no | model id | default `gemini-3.5-flash-lite` |
+| `MAX_PROSPECTS_PER_RUN` | no | 1-50 | default 10 |
+| `NO_REPLY_HOURS` | no | hours before Needs attention | default 72 |
+| `SENDER_DESCRIPTION` | no | one line about the sender, used in drafts | default GenAI Fund line |
 
-## What it will not do
-
-- Send without a person pressing Send, send in bulk, schedule, or follow up after silence. X's automation rules forbid unsolicited automated DMs and follow-ups.
-- Message anyone twice. The database refuses a second message to the same person, and a send whose outcome is unknown is never retried.
-- Message real people while test mode is on (the default).
-- Read reply text. Replies arrive through X Chat, which is end-to-end encrypted. The tool knows who replied and when, and links to the chat on X.
-
-## Limits found while testing
-
-- Most AI builders found by search do not accept DMs from an account they do not follow. Across three live runs, 23 of 33 candidates were closed. They are left out and counted in the run note.
-- The Gemini free tier uses prompts to improve Google products, and X forbids using X data to train AI models. Turn on Gemini billing (paid tier does not train on prompts) before running on real profiles, or point `LLM_BASE_URL` at another provider.
-- X pay-per-use prices per resource: user $0.010, post $0.005, DM sent $0.015. From 22 November 2026 objects returned through expansions are billed the same way.
-
-## Development
+## Run
 
 ```bash
-npm run dev        # http://127.0.0.1:3000
-npm test           # 151 unit tests, no network
+cp .env.example .env.local
+npm ci
+npm run build && npm start
+```
+
+Open http://127.0.0.1:3000. Not `localhost`: callback and cookies bind to `127.0.0.1`.
+
+## Test
+
+```bash
+npm test
 npm run typecheck
 ```
 
-Code layout: `src/server/domain` holds the pure rules (statuses, buckets, evidence, pricing, limits). `src/server/infra` holds the store, X client, LLM call, crypto and config. `src/server/web` holds server actions, session, views and the container. `src/server/outreach.ts` is the use case. `src/ui` holds atoms, molecules and organisms and imports only `domain` and `web/views` types. `app/` holds thin routes.
+## Walkthrough
+
+1. `/connect`: tick consent, Connect X, sign in as `ALLOWED_OPERATORS` account.
+2. Find: `Seed accounts` + `@karpathy`, Find people. Run row shows progress, then result.
+3. Review > To review: quotes highlighted in bio/posts. Edit draft, Approve.
+4. Approved: Send, confirm. Test mode shows Send only for `TEST_RECIPIENTS`.
+5. Sent / Replied / Needs attention: Check replies. Reply from recipient account moves row to Replied.
+
+## Layout
+
+```
+app/                 routes, OAuth login/callback
+src/server/domain/   rules: prospect states, evidence, pricing, limits
+src/server/infra/    X API, LLM, SQLite, crypto, config
+src/server/web/      server actions, session, read models
+src/ui/              atoms, molecules, organisms
+test/                node:test, no network
+```
