@@ -43,3 +43,7 @@
 .count { min-width: 2ch; color: var(--ash); font-size: 14px; font-variant-numeric: tabular-nums; }
 
 .count[data-zero] { visibility: hidden; }
+
+@media (max-width: 860px) {
+  .tabs { padding-right: 32px; mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+}

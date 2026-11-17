@@ -50,7 +50,7 @@ function Delivery({ p, justSent, noReplyHours }: { p: ProspectView; justSent: bo
       </div>
       <p className={styles.muted}>{body}</p>
       <blockquote className={styles.sent}>{p.draft}</blockquote>
-      <a className={styles.link} href={x} target="_blank" rel="noreferrer">Open @{p.username} on X →</a>
+      <a className={styles.link} href={x} target="_blank" rel="noreferrer">Open @{p.username} on X</a>
     </section>
   );
 }
@@ -104,7 +104,7 @@ export function ProspectDetail({ p, actions, pending, justSent, sendBlocked, noR
             ) : (
               <>
                 <SendControl handle={p.username} pending={pending === 'send'} blockedReason={sendBlocked} onSend={() => actions.send(p.id)} />
-                <Button variant="text" onClick={() => actions.decide(p.id, 'restore')}>Back to review</Button>
+                <Button variant="text" className={styles.back} onClick={() => actions.decide(p.id, 'restore')}>Back to review</Button>
               </>
             )}
           </div>

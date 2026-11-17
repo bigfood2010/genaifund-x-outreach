@@ -19,6 +19,8 @@
 
 .row[aria-current] { background: var(--mist); }
 
+.row[aria-current] > :first-child { background: var(--paper); }
+
 .body { display: grid; gap: 4px; min-width: 0; flex: 1; }
 
 .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }

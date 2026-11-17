@@ -119,7 +119,7 @@ export function ReviewWorkspace({ items, liveSending, testRecipients, noReplyHou
         ) : (
           <div className={styles.empty}>
             <p>{EMPTY[tab]}</p>
-            {tab === 'review' && <Link href="/find" className={styles.emptyLink}>Find people →</Link>}
+            {tab === 'review' && <Link href="/find" className={styles.emptyLink}>Find people</Link>}
           </div>
         )}
         {selected && (
